@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Foreground: logo centered in 108dp adaptive icon canvas. Safe zone is center 66%. -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:width="108dp"
+        android:height="108dp"
+        android:drawable="@drawable/icon720"
+        android:gravity="fill" />
+</layer-list>

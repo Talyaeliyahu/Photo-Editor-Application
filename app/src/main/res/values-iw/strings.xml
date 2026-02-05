@@ -1,0 +1,171 @@
+<resources>
+    <string name="app_name">עורך תמונות</string>
+    
+    <!-- Editor Screen -->
+    <string name="photo_editor">עורך תמונות</string>
+    <string name="no_image_selected">לא נבחרה תמונה</string>
+    <string name="select_image_from_gallery">בחר תמונה מהגלריה</string>
+    
+    <!-- Dialog -->
+    <string name="cancel_editing">ביטול עריכה?</string>
+    <string name="cancel_editing_message">האם אתה בטוח שאתה רוצה לחזור? כל השינויים יאבדו ולא יישמרו.</string>
+    <string name="yes_cancel">כן, בטל</string>
+    <string name="no_continue">לא, המשך</string>
+    
+    <!-- Top Action Bar -->
+    <string name="undo">בטל</string>
+    <string name="redo">חזור</string>
+    <string name="save">שמור</string>
+    <string name="cancel">ביטול</string>
+    <string name="toggle_original_edited">החלף מקורי/ערוך</string>
+    
+    <!-- Bottom Navigation -->
+    <string name="adjustments">התאמות</string>
+    <string name="filters">פילטרים</string>
+    <string name="crop_tools">חיתוך</string>
+    <string name="crop_image">חיתוך תמונה</string>
+    <string name="rotate_image">סיבוב</string>
+    <string name="mirror_image">היפוך מראה</string>
+    <string name="change_aspect_ratio">שינוי יחס תמונה</string>
+    <string name="text_tools">טקסט</string>
+    <string name="add_text">הוסף טקסט</string>
+    <string name="done">סיום</string>
+    <string name="text_hint">הקלד טקסט</string>
+    <string name="text_size">גודל טקסט</string>
+    <string name="text_color">צבע טקסט</string>
+    <string name="bold">בולד</string>
+    <string name="italic">נטוי</string>
+    <string name="underline">קו תחתון</string>
+    <string name="delete_text">מחיקה</string>
+    <string name="stickers_tools">סטיקרים</string>
+    <string name="delete_sticker">מחיקת סטיקר</string>
+    <string name="tap_sticker_to_add">בחר סטיקר כדי להוסיף אותו.</string>
+    <string name="draw_tools">ציור</string>
+    <string name="draw_color">צבע</string>
+    <string name="draw_clear">מחק הכל</string>
+    <string name="draw_stroke_width">עובי קו</string>
+    <string name="frames_tools">מסגרות</string>
+    <string name="frame_none">ללא</string>
+    <string name="frame_custom">עיצוב אישי</string>
+    <string name="frame_back">חזור</string>
+    <string name="frame_color">צבע</string>
+    <string name="frame_thickness">עובי</string>
+    <string name="frame_thin">דק</string>
+    <string name="frame_medium">בינוני</string>
+    <string name="frame_thick">עבה</string>
+    <string name="frame_rounded">מעוגל</string>
+    <string name="frame_regular">רגיל</string>
+    <string name="frame_shape">צורה</string>
+    <string name="frame_101">פרחים</string>
+    <string name="frame_104">דבורים</string>
+    <string name="frame_105">שלג</string>
+    <string name="frame_107">צבעוני</string>
+    <string name="frame_108">כוכבים</string>
+    <string name="frame_109">טבע</string>
+    <string name="frame_110">יום הולדת</string>
+    <string name="frame_111">גשם</string>
+    <string name="frame_112">פרפרים</string>
+    <string name="frame_113">זיקוקים</string>
+    <string name="frame_103">עלי זהב</string>
+    <string name="frame_106">קונפטי</string>
+    <string name="frame_114">קלאסי 1</string>
+    <string name="frame_115">קלאסי 2</string>
+    <string name="frame_116">קלאסי 3</string>
+    <string name="frame_117">נקודות</string>
+    <string name="frame_blackwhite">שחור</string>
+    <string name="frame_border2">זהב</string>
+    <string name="frame_f159">פרחים חצוי</string>
+    <string name="frame_100">שחור לבן</string>
+    <string name="rotate_text">סיבוב</string>
+    <string name="tap_text_to_edit">גע בטקסט על התמונה כדי לערוך.</string>
+    <string name="tap_to_add_text">גע בתיבה למעלה כדי להוסיף טקסט.</string>
+    
+    <!-- Adjustment Panel -->
+    <string name="reset_all">איפוס הכל</string>
+    <string name="brightness">בהירות</string>
+    <string name="contrast">ניגודיות</string>
+    <string name="saturation">רוויה</string>
+    <string name="exposure">חשיפה</string>
+    <string name="glow">זוהר</string>
+    <string name="highlights">הדגשות</string>
+    <string name="shadows">צללים</string>
+    <string name="vibrance">חיוניות</string>
+    <string name="warmth">חום</string>
+    <string name="tint">גוון ירוק/סגול</string>
+    <string name="hue">גוון</string>
+    <string name="sharpness">חדות</string>
+    <string name="definition">הבחנה</string>
+    <string name="vignette">החשכת פינות</string>
+    <string name="vignette_short">חשכת פינות</string>
+    
+    <!-- Filter Panel -->
+    <string name="grayscale">גווני אפור</string>
+    <string name="sepia">ספיה</string>
+    <string name="blur">טשטוש</string>
+    <string name="filter_vivid">חי</string>
+    <string name="filter_noir">נואר</string>
+    <string name="filter_warm">חם</string>
+    <string name="filter_cool">קר</string>
+    <string name="filter_vintage">וינטג׳</string>
+    <string name="filter_invert">היפוך צבעים</string>
+    <string name="filter_fade">פייד</string>
+    <string name="filter_dramatic">דרמטי</string>
+    <string name="filter_pastel">פסטל</string>
+    <string name="filter_neon">ניאון</string>
+    <string name="filter_retro">רטרו</string>
+    <string name="filter_dreamy">חלומי</string>
+    <string name="filter_sunset">שקיעה</string>
+    <string name="filter_clean_skin">עור נקי</string>
+    
+    <!-- Image Indicator -->
+    <string name="original">מקורי</string>
+    <string name="edited">ערוך</string>
+    
+    <!-- Image Display -->
+    <string name="edited_image">תמונה ערוכה</string>
+    <string name="no_image">אין תמונה</string>
+    
+    <!-- Toast Messages -->
+    <string name="image_saved_successfully">התמונה נשמרה בהצלחה!</string>
+    <string name="failed_to_save_image">שמירת התמונה נכשלה</string>
+    
+    <!-- MainActivity -->
+    <string name="requesting_permissions">מבקש הרשאות...</string>
+    
+    <!-- Welcome Screen -->
+    <string name="welcome_title">עורך תמונות</string>
+    <string name="camera">מצלמה</string>
+    <string name="gallery">גלריה</string>
+    <string name="collage">קולאז׳</string>
+    <string name="collage_title_with_count">קולאז׳ - %d תמונות</string>
+    <string name="settings">הגדרות</string>
+    <string name="app_version">גרסת האפליקציה</string>
+    <string name="version_name">1.0.0</string>
+    <string name="language_settings">שפה</string>
+    <string name="select_language">בחר שפה</string>
+    <string name="hebrew">עברית</string>
+    <string name="english">אנגלית</string>
+    <string name="system_default">ברירת מחדל של המערכת</string>
+    
+    <!-- Photo Preview Screen -->
+    <string name="preview_image">תצוגה מקדימה</string>
+    <string name="edit">ערוך</string>
+    <string name="failed_to_load_image">טעינת התמונה נכשלה</string>
+
+    <!-- Settings -->
+    <string name="app_details">פרטי אפליקציה</string>
+    
+    <!-- Collage -->
+    <string name="select_up_to_9_images">בחר עד 9 תמונות</string>
+    <string name="select_up_to_10_images">בחר עד 10 תמונות</string>
+    <string name="select_images">בחר תמונות</string>
+    <string name="selected_images">נבחרו %d תמונות</string>
+    <string name="change_selection">שנה בחירה</string>
+    <string name="create_collage">צור קולאז׳</string>
+    <string name="edit_collage">ערוך קולאז׳</string>
+    <string name="templates">תבניות</string>
+    <string name="border">גבול</string>
+    <string name="border_enable">הפעל</string>
+    <string name="border_width">עובי גבול: %dpx</string>
+    <string name="border_color">צבע גבול</string>
+</resources>

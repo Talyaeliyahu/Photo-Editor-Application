@@ -1,0 +1,229 @@
+package com.example.photoeditor.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.photoeditor.R
+import com.example.photoeditor.utils.ImageUtils
+import com.example.photoeditor.viewmodel.CollageViewModel
+import com.example.photoeditor.ui.theme.EditorBlackTheme
+import com.example.photoeditor.ui.components.collage.*
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import android.net.Uri
+
+/**
+ * Collage editor screen - edit collage layout with template carousel
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CollageEditorScreen(
+    selectedImages: List<android.net.Uri>,
+    onBackClick: () -> Unit,
+    onSaveComplete: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    EditorBlackTheme {
+        val viewModel: CollageViewModel = viewModel()
+        val uiState by viewModel.uiState.collectAsState()
+        val context = LocalContext.current
+        val scope = rememberCoroutineScope()
+        
+        // Track which panel category is selected
+        var selectedPanelCategory by remember { mutableStateOf<CollagePanelCategory>(CollagePanelCategory.TEMPLATES) }
+        
+        // Track which image index to replace
+        var imageIndexToReplace by remember { mutableStateOf<Int?>(null) }
+        
+        // Launcher for picking replacement image
+        val pickReplacementImageLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.PickVisualMedia()
+        ) { uri: Uri? ->
+            uri?.let {
+                imageIndexToReplace?.let { index ->
+                    viewModel.replaceImage(index, it)
+                }
+            }
+            imageIndexToReplace = null
+        }
+
+        // Initialize images if not already set
+        LaunchedEffect(selectedImages) {
+            if (uiState.selectedImages != selectedImages) {
+                viewModel.setSelectedImages(selectedImages)
+            }
+        }
+
+        // Force LTR layout so collage is always on left, panel on right
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                // Left half: Collage display
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .background(Color.Black)
+                        .onSizeChanged { size ->
+                            if (size.width > 0 && size.height > 0) {
+                                viewModel.setPreviewSize(size.width, size.height)
+                            }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    uiState.previewBitmap?.let { bitmap ->
+                        uiState.config?.let { config ->
+                            CollagePreview(
+                                previewBitmap = bitmap,
+                                config = config,
+                                onSwapImages = { index1, index2 ->
+                                    viewModel.swapImages(index1, index2)
+                                },
+                                onReplaceImage = { index ->
+                                    imageIndexToReplace = index
+                                    pickReplacementImageLauncher.launch(
+                                        PickVisualMediaRequest(
+                                            ActivityResultContracts.PickVisualMedia.ImageOnly
+                                        )
+                                    )
+                                },
+                                onFocusChange = { index, l, t, r, b ->
+                                    viewModel.updateImageCrop(index, l, t, r, b)
+                                },
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    } ?: run {
+                        if (uiState.isRendering) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.align(Alignment.Center),
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+                
+                // Divider
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .fillMaxHeight()
+                        .background(Color(0xFF333333))
+                )
+                
+                // Right half: Control panel
+                val appLanguage = com.example.photoeditor.utils.LocaleHelper.getAppLanguage(context)
+                val panelLayoutDirection = if (appLanguage == "he") LayoutDirection.Rtl else LayoutDirection.Ltr
+                CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(Color.Black)
+                    ) {
+                        // Top bar: back arrow | title | save button
+                        CollageTopBar(
+                            title = when (selectedPanelCategory) {
+                                CollagePanelCategory.TEMPLATES -> stringResource(R.string.templates)
+                                CollagePanelCategory.BORDERS -> stringResource(R.string.border)
+                                CollagePanelCategory.NONE -> ""
+                            },
+                            onBackClick = onBackClick,
+                            onSaveClick = {
+                                scope.launch {
+                                    val bitmap = viewModel.renderFinalCollage()
+                                    bitmap?.let {
+                                        val saved = ImageUtils.saveBitmapToGallery(context, it)
+                                        if (saved) {
+                                            ImageUtils.showToast(
+                                                context,
+                                                context.getString(R.string.image_saved_successfully)
+                                            )
+                                            onSaveComplete()
+                                        } else {
+                                            ImageUtils.showToast(
+                                                context,
+                                                context.getString(R.string.failed_to_save_image)
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        
+                        // Middle section: Content (templates carousel, borders, etc.)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .background(Color.Black)
+                        ) {
+                            when (selectedPanelCategory) {
+                                CollagePanelCategory.TEMPLATES -> {
+                                    if (uiState.availableTemplates.isNotEmpty()) {
+                                        TemplateCarousel(
+                                            templates = uiState.availableTemplates,
+                                            selectedTemplate = uiState.config?.template,
+                                            onTemplateSelected = { template ->
+                                                viewModel.changeTemplate(template)
+                                            },
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    }
+                                }
+                                CollagePanelCategory.BORDERS -> {
+                                    BorderPanel(
+                                        borderWidth = uiState.config?.borderWidth ?: 0f,
+                                        borderColor = uiState.config?.borderColor ?: android.graphics.Color.WHITE,
+                                        onBorderWidthChange = { width ->
+                                            viewModel.setBorderWidth(width)
+                                        },
+                                        onBorderColorChange = { color ->
+                                            viewModel.setBorderColor(color)
+                                        },
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                CollagePanelCategory.NONE -> {}
+                            }
+                        }
+                        
+                        // Bottom bar: Category selector
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(Color(0xFF333333))
+                        )
+                        CollageBottomNavigationBar(
+                            selectedCategory = selectedPanelCategory,
+                            onCategorySelected = { category ->
+                                selectedPanelCategory = category
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
