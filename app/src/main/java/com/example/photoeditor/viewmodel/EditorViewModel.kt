@@ -52,7 +52,8 @@ enum class FilterType {
     RETRO,
     DREAMY,
     SUNSET,
-    CLEAN_SKIN
+    CLEAN_SKIN,
+    EMBOSS
 }
 
 /**
@@ -253,6 +254,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
             FilterType.DREAMY -> com.example.photoeditor.image.filters.DreamyFilter()
             FilterType.SUNSET -> com.example.photoeditor.image.filters.SunsetFilter()
             FilterType.CLEAN_SKIN -> com.example.photoeditor.image.filters.CleanSkinFilter()
+            FilterType.EMBOSS -> com.example.photoeditor.image.filters.EmbossFilter()
             null -> null
         }
     }
@@ -587,6 +589,7 @@ class EditorViewModel(application: Application) : AndroidViewModel(application) 
                         FilterType.DREAMY -> com.example.photoeditor.image.filters.DreamyFilter()
                         FilterType.SUNSET -> com.example.photoeditor.image.filters.SunsetFilter()
                         FilterType.CLEAN_SKIN -> com.example.photoeditor.image.filters.CleanSkinFilter()
+                        FilterType.EMBOSS -> com.example.photoeditor.image.filters.EmbossFilter()
                         null -> null
                     }
                     if (filter != null) {

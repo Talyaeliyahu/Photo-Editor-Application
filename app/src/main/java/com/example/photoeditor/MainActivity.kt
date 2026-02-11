@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.core.content.FileProvider
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.photoeditor.R
 import com.example.photoeditor.ui.CollageScreen
@@ -343,7 +345,6 @@ class MainActivity : ComponentActivity() {
                                     cleanupCameraTemp(deleteFile = true)
                                     selectedImageUri = null
                                     Log.d("GalleryFlow", "editorSelectImage: launching picker")
-                                    // Launch image picker
                                     pickImageLauncher.launch(
                                         PickVisualMediaRequest(
                                             ActivityResultContracts.PickVisualMedia.ImageOnly
@@ -474,7 +475,12 @@ class MainActivity : ComponentActivity() {
         Log.d("LocaleInfo", "=========================")
         
         enableEdgeToEdge()
-        
+
+        // Hide navigation bar by default; user can swipe up from bottom to show it
+        val insetsController = WindowInsetsControllerCompat(window, window.decorView)
+        insetsController.hide(WindowInsetsCompat.Type.navigationBars())
+        insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+
         setContent {
             AppContent(
                 onLanguageChange = { languageCode ->

@@ -36,6 +36,7 @@ class CollageViewModel(application: Application) : AndroidViewModel(application)
     val uiState: StateFlow<CollageUiState> = _uiState.asStateFlow()
     
     private var cropPreviewDebounceJob: Job? = null
+    private var borderPreviewDebounceJob: Job? = null
 
     fun setSelectedImages(uris: List<Uri>) {
         // Shuffle images randomly
@@ -177,14 +178,18 @@ class CollageViewModel(application: Application) : AndroidViewModel(application)
         val currentConfig = _uiState.value.config ?: return
         val newConfig = currentConfig.copy(borderWidth = width)
         _uiState.value = _uiState.value.copy(config = newConfig)
-        generatePreview(newConfig)
+        borderPreviewDebounceJob?.cancel()
+        borderPreviewDebounceJob = viewModelScope.launch {
+            delay(80)
+            generatePreview(newConfig, showLoadingState = false)
+        }
     }
 
     fun setBorderColor(color: Int) {
         val currentConfig = _uiState.value.config ?: return
         val newConfig = currentConfig.copy(borderColor = color)
         _uiState.value = _uiState.value.copy(config = newConfig)
-        generatePreview(newConfig)
+        generatePreview(newConfig, showLoadingState = false)
     }
 
     fun setAspectRatio(ratio: Float?) {
@@ -233,6 +238,8 @@ class CollageViewModel(application: Application) : AndroidViewModel(application)
     fun clear() {
         cropPreviewDebounceJob?.cancel()
         cropPreviewDebounceJob = null
+        borderPreviewDebounceJob?.cancel()
+        borderPreviewDebounceJob = null
         _uiState.value = CollageUiState()
     }
 }

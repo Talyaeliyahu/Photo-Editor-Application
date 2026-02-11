@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.border
@@ -72,26 +73,28 @@ internal fun AdjustmentSliderPanel(
 
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // Top row: Title with value at start (right in RTL), slider takes remaining space
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            // Title with value at start (will be on right in RTL/Hebrew)
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (adjustmentType == AdjustmentType.BRIGHTNESS) {
                     Icon(
                         imageVector = Icons.Default.LightMode,
                         contentDescription = null,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                         tint = MaterialTheme.colorScheme.primary
                     )
                 } else {
-                    val iconSize = if (adjustmentType == AdjustmentType.WARMTH) 28.dp else 24.dp
+                    val iconSize = if (adjustmentType == AdjustmentType.WARMTH) 24.dp else 20.dp
                     AppleStyleAdjustmentIcon(
                         type = adjustmentType,
                         tint = MaterialTheme.colorScheme.primary,
@@ -99,29 +102,26 @@ internal fun AdjustmentSliderPanel(
                     )
                 }
                 Text(
-                    text = label,
+                    text = "$label ${tempValue.toInt()}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
             }
-            Text(
-                text = "${tempValue.toInt()}",
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold
+            
+            // Slider takes remaining space
+            Slider(
+                value = tempValue,
+                onValueChange = { newValue ->
+                    tempValue = newValue
+                    onValueChange(newValue)
+                },
+                valueRange = valueRange,
+                modifier = Modifier
+                    .weight(0.75f)
             )
         }
 
-        Slider(
-            value = tempValue,
-            onValueChange = { newValue ->
-                tempValue = newValue
-                onValueChange(newValue)
-            },
-            valueRange = valueRange,
-            modifier = Modifier.fillMaxWidth()
-        )
-
+        // Bottom row: Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -134,13 +134,13 @@ internal fun AdjustmentSliderPanel(
                 },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
+                    .height(40.dp)
             ) {
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -148,7 +148,7 @@ internal fun AdjustmentSliderPanel(
                             imageVector = Icons.Default.Refresh,
                             contentDescription = label,
                             tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -158,13 +158,13 @@ internal fun AdjustmentSliderPanel(
                 onClick = { onCancel(originalValue) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
+                    .height(40.dp)
             ) {
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.errorContainer,
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -172,7 +172,7 @@ internal fun AdjustmentSliderPanel(
                             imageVector = Icons.Default.Close,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onErrorContainer,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -182,13 +182,13 @@ internal fun AdjustmentSliderPanel(
                 onClick = { onConfirm(tempValue) },
                 modifier = Modifier
                     .weight(1f)
-                    .height(48.dp)
+                    .height(40.dp)
             ) {
                 Surface(
                     shape = CircleShape,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     modifier = Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -196,7 +196,7 @@ internal fun AdjustmentSliderPanel(
                             imageVector = Icons.Default.Check,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }

@@ -4,12 +4,12 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -70,7 +70,8 @@ fun StickerToolPanel(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Delete,
-                        contentDescription = stringResource(R.string.delete_sticker)
+                        contentDescription = stringResource(R.string.delete_sticker),
+                        tint = androidx.compose.ui.graphics.Color.White
                     )
                 }
             }
@@ -79,7 +80,9 @@ fun StickerToolPanel(
                 columns = GridCells.Fixed(6),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
             ) {
                 items(catalog) { emoji ->
                     OutlinedButton(
@@ -105,4 +108,3 @@ fun StickerToolPanel(
         }
     }
 }
-

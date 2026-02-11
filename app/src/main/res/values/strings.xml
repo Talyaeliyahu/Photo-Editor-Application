@@ -29,6 +29,7 @@
     <string name="change_aspect_ratio">Aspect ratio</string>
     <string name="text_tools">Text</string>
     <string name="add_text">Add text</string>
+    <string name="new_text">New</string>
     <string name="done">Done</string>
     <string name="text_hint">Type your text</string>
     <string name="text_size">Text size</string>
@@ -116,6 +117,7 @@
     <string name="filter_dreamy">Dreamy</string>
     <string name="filter_sunset">Sunset</string>
     <string name="filter_clean_skin">Clean skin</string>
+    <string name="filter_emboss">Emboss</string>
     
     <!-- Image Indicator -->
     <string name="original">ORIGINAL</string>

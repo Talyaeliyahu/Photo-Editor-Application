@@ -20,9 +20,11 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import android.content.res.Configuration
 import com.example.photoeditor.R
 
 /**
@@ -74,24 +76,32 @@ fun WelcomeScreen(
                 modifier = Modifier.padding(bottom = 24.dp)
             )
 
+            val config = LocalConfiguration.current
+            val isPortrait = config.orientation == Configuration.ORIENTATION_PORTRAIT
+            val cardModifier = if (isPortrait) {
+                Modifier.weight(1f).aspectRatio(1f)
+            } else {
+                Modifier.size(110.dp)
+            }
             Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 ActionCard(
-                    modifier = Modifier.size(110.dp),
+                    modifier = cardModifier,
                     icon = Icons.Default.Camera,
                     label = stringResource(R.string.camera),
                     onClick = onCameraClick
                 )
                 ActionCard(
-                    modifier = Modifier.size(110.dp),
+                    modifier = cardModifier,
                     icon = Icons.Default.PhotoLibrary,
                     label = stringResource(R.string.gallery),
                     onClick = onGalleryClick
                 )
                 ActionCard(
-                    modifier = Modifier.size(110.dp),
+                    modifier = cardModifier,
                     icon = Icons.Default.GridOn,
                     label = stringResource(R.string.collage),
                     onClick = onCollageClick
@@ -114,6 +124,8 @@ fun WelcomeScreen(
     }
 }
 
+private val HomeCardIconBlue = Color(0xFF15202B)
+
 @Composable
 private fun ActionCard(
     modifier: Modifier = Modifier,
@@ -125,7 +137,7 @@ private fun ActionCard(
         onClick = onClick,
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp),
+        color = Color.White,
         shadowElevation = 3.dp,
         tonalElevation = 2.dp
     ) {
@@ -140,14 +152,14 @@ private fun ActionCard(
                 imageVector = icon,
                 contentDescription = label,
                 modifier = Modifier.size(44.dp),
-                tint = MaterialTheme.colorScheme.primary
+                tint = HomeCardIconBlue
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
+                color = HomeCardIconBlue
             )
         }
     }

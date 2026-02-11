@@ -1,6 +1,5 @@
 package com.example.photoeditor.ui.components
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -39,10 +38,10 @@ internal fun AdjustmentIconButton(
     val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
 
     Surface(
+        onClick = onClick,
         modifier = Modifier
             .size(48.dp)
-            .border(borderWidth, borderColor, CircleShape)
-            .clickable { onClick() },
+            .border(borderWidth, borderColor, CircleShape),
         shape = CircleShape,
         color = containerColor
     ) {

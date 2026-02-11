@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -32,14 +33,17 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.consumeAllChanges
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import com.example.photoeditor.R
+import kotlin.math.max
 import kotlin.math.min
 
 /**
@@ -72,6 +76,7 @@ fun ImageDisplay(
     enableZoom: Boolean = true,
     resetTransform: Boolean = false,
     roundedCornerRadiusPercent: Float = 0f,
+    allowSingleFingerPan: Boolean = true,
     overlayContent: @Composable (imageRect: Rect, scale: Float) -> Unit = { _, _ -> }
 ) {
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
@@ -88,67 +93,110 @@ fun ImageDisplay(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .clipToBounds()
             // Black background for the "empty" area around the image (when using ContentScale.Fit).
             .background(Color.Black)
             .onSizeChanged { containerSize = it }
             .combinedClickable(
                 onClick = { /* no-op */ },
-                onLongClick = { onLongPress() }
+                onLongClick = { onLongPress() },
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
             )
-            .pointerInput(enableZoom, containerSize, bitmap) {
-                if (!enableZoom) return@pointerInput
-                // Two-finger pinch + pan (avoids conflicting with 1-finger drag on overlays)
+            .pointerInput(enableZoom, allowSingleFingerPan, containerSize, bitmap) {
+                if (!enableZoom || bitmap == null) return@pointerInput
+                val imageRect = computeFitRect(containerSize, bitmap.width, bitmap.height)
+
+                fun getPanBounds(s: Float): Pair<Float, Float> {
+                    val scaledW = imageRect.width * s
+                    val scaledH = imageRect.height * s
+                    val maxX = max(0f, (scaledW - containerSize.width) / 2f)
+                    val maxY = max(0f, (scaledH - containerSize.height) / 2f)
+                    return maxX to maxY
+                }
+
                 awaitEachGesture {
                     var lastCentroid: Offset? = null
                     var lastSpread: Float? = null
 
                     while (true) {
-                        val event = awaitPointerEvent()
+                        val event = awaitPointerEvent(PointerEventPass.Final)
                         val pressed = event.changes.filter { it.pressed }
                         if (pressed.isEmpty()) break
 
-                        if (pressed.size < 2) {
-                            lastCentroid = null
-                            lastSpread = null
-                            continue
+                        // Skip if overlay (sticker/text) already consumed - let them handle
+                        if (pressed.any { it.isConsumed }) continue
+
+                        val handled = when {
+                            // Two fingers: pinch zoom around pivot (like gallery) + pan
+                            pressed.size >= 2 -> {
+                                val centroid = pressed
+                                    .map { it.position }
+                                    .reduce { acc, p -> acc + p } / pressed.size.toFloat()
+
+                                val spread = pressed
+                                    .map { (it.position - centroid).getDistance() }
+                                    .average()
+                                    .toFloat()
+                                    .coerceAtLeast(1f)
+
+                                val center = Offset(
+                                    containerSize.width / 2f,
+                                    containerSize.height / 2f
+                                )
+
+                                val prevC = lastCentroid
+                                val prevS = lastSpread
+                                if (prevC != null && prevS != null) {
+                                    val zoom = spread / prevS
+                                    val newScale = (scale * zoom).coerceIn(1f, 5f)
+
+                                    // Zoom around pivot (point between fingers) - like gallery
+                                    val pivot = centroid
+                                    val newOffset = (pivot - center) * (1f - zoom) + offset * zoom
+
+                                    // Add pan from centroid movement
+                                    val pan = centroid - prevC
+                                    val adjustedOffset = if (newScale > 1.001f) newOffset + pan else Offset.Zero
+
+                                    val (maxX, maxY) = getPanBounds(newScale)
+
+                                    scale = newScale
+                                    offset = Offset(
+                                        x = adjustedOffset.x.coerceIn(-maxX, maxX),
+                                        y = adjustedOffset.y.coerceIn(-maxY, maxY)
+                                    )
+                                }
+
+                                lastCentroid = centroid
+                                lastSpread = spread
+                                true
+                            }
+                            // One finger when zoomed: pan the image (skip when editing stickers/text)
+                            pressed.size == 1 && scale > 1.001f && allowSingleFingerPan -> {
+                                val pos = pressed.first().position
+                                val prevC = lastCentroid
+                                if (prevC != null) {
+                                    val pan = pos - prevC
+                                    val (maxX, maxY) = getPanBounds(scale)
+
+                                    offset = Offset(
+                                        x = (offset.x + pan.x).coerceIn(-maxX, maxX),
+                                        y = (offset.y + pan.y).coerceIn(-maxY, maxY)
+                                    )
+                                }
+                                lastCentroid = pos
+                                lastSpread = null
+                                true
+                            }
+                            else -> {
+                                lastCentroid = pressed.first().position
+                                lastSpread = null
+                                false
+                            }
                         }
 
-                        val centroid = pressed
-                            .map { it.position }
-                            .reduce { acc, p -> acc + p } / pressed.size.toFloat()
-
-                        val spread = pressed
-                            .map { (it.position - centroid).getDistance() }
-                            .average()
-                            .toFloat()
-                            .coerceAtLeast(1f)
-
-                        val prevC = lastCentroid
-                        val prevS = lastSpread
-                        if (prevC != null && prevS != null) {
-                            val pan = centroid - prevC
-                            val zoom = spread / prevS
-
-                            val newScale = (scale * zoom).coerceIn(1f, 5f)
-                            val newOffset = if (newScale > 1.001f) offset + pan else Offset.Zero
-
-                            val maxX = (containerSize.width * (newScale - 1f)) / 2f
-                            val maxY = (containerSize.height * (newScale - 1f)) / 2f
-
-                            scale = newScale
-                            offset = Offset(
-                                x = newOffset.x.coerceIn(-maxX, maxX),
-                                y = newOffset.y.coerceIn(-maxY, maxY)
-                            )
-                        }
-
-                        lastCentroid = centroid
-                        lastSpread = spread
-
-                        // Consume so parent scroll/gestures don't interfere
-                        pressed.forEach { change ->
-                            change.consumeAllChanges()
-                        }
+                        if (handled) pressed.forEach { it.consumeAllChanges() }
                     }
                 }
             },

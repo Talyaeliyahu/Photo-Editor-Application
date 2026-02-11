@@ -14,7 +14,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.graphics.Color
 import com.example.photoeditor.R
+import com.example.photoeditor.ui.theme.LightBlueHeader
+import com.example.photoeditor.ui.theme.SelectedAccentBlue
 import com.example.photoeditor.utils.LocaleHelper
 
 /**
@@ -70,7 +73,9 @@ fun SettingsScreen(
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+                    containerColor = LightBlueHeader,
+                    titleContentColor = Color(0xFF1A237E),
+                    navigationIconContentColor = Color(0xFF1A237E)
                 )
             )
         }
@@ -85,27 +90,30 @@ fun SettingsScreen(
                 Text(
                     text = stringResource(R.string.language_settings),
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = SelectedAccentBlue,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
             item {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.language_settings)) },
-                    supportingContent = { Text(languageLabel(selectedLanguage)) },
+                    headlineContent = { Text(stringResource(R.string.language_settings), color = Color(0xFF212121)) },
+                    supportingContent = { Text(languageLabel(selectedLanguage), color = Color(0xFF616161)) },
                     trailingContent = {
                         Icon(
                             imageVector = Icons.Default.ChevronRight,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            tint = Color(0xFF757575)
                         )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable { showLanguageDialog = true }
                 )
-                HorizontalDivider(modifier = Modifier.padding(start = 16.dp))
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 16.dp),
+                    color = Color(0xFFE0E0E0)
+                )
             }
 
             item {
@@ -113,15 +121,15 @@ fun SettingsScreen(
                 Text(
                     text = stringResource(R.string.app_details),
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = SelectedAccentBlue,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
 
             item {
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.app_version)) },
-                    supportingContent = { Text(appVersionName) }
+                    headlineContent = { Text(stringResource(R.string.app_version), color = Color(0xFF212121)) },
+                    supportingContent = { Text(appVersionName, color = Color(0xFF616161)) }
                 )
             }
         }
@@ -130,7 +138,7 @@ fun SettingsScreen(
     if (showLanguageDialog) {
         AlertDialog(
             onDismissRequest = { showLanguageDialog = false },
-            title = { Text(stringResource(R.string.select_language)) },
+            title = { Text(stringResource(R.string.select_language), color = Color(0xFF212121)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     LanguageChoiceRow(
@@ -164,7 +172,7 @@ fun SettingsScreen(
             },
             confirmButton = {
                 TextButton(onClick = { showLanguageDialog = false }) {
-                    Text(stringResource(R.string.cancel))
+                    Text(stringResource(R.string.cancel), color = SelectedAccentBlue)
                 }
             }
         )
@@ -182,11 +190,16 @@ private fun LanguageChoiceRow(label: String, isSelected: Boolean, onClick: () ->
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.bodyLarge
+            style = MaterialTheme.typography.bodyLarge,
+            color = Color(0xFF212121)
         )
         RadioButton(
             selected = isSelected,
-            onClick = onClick
+            onClick = onClick,
+            colors = RadioButtonDefaults.colors(
+                selectedColor = SelectedAccentBlue,
+                unselectedColor = Color(0xFF757575)
+            )
         )
     }
 }

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -81,11 +82,30 @@ fun FrameToolPanel(
     }
 }
 
+/**
+ * Custom frame panel for use in a bottom sheet (e.g. when "Custom" is tapped from FramesHorizontalBar).
+ */
+@Composable
+fun FrameCustomSheetContent(
+    currentConfig: FrameConfig,
+    onConfigChange: (FrameConfig) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    CustomFramePanel(
+        currentConfig = currentConfig,
+        onConfigChange = onConfigChange,
+        onBack = onDismiss,
+        modifier = modifier
+    )
+}
+
 @Composable
 private fun CustomFramePanel(
     currentConfig: FrameConfig,
     onConfigChange: (FrameConfig) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val customColor = if (currentConfig.type == FrameType.STROKE) currentConfig.color else AndroidColor.WHITE
     val customThickness = when (currentConfig.thicknessPercent) {
@@ -123,93 +143,57 @@ private fun CustomFramePanel(
     }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .padding(horizontal = 0.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        IconButton(
-            onClick = onBack,
-            modifier = Modifier.align(Alignment.Start)
-        ) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.frame_back))
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = stringResource(R.string.frame_color),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.widthIn(min = 36.dp)
-            )
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.frame_back))
+            }
             Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
             ) {
-                colors.forEach { color ->
-                    val colorArgb = color.toArgb()
-                    val border = when {
-                        selectedColor == colorArgb -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                        colorArgb == AndroidColor.BLACK -> BorderStroke(1.dp, Color.White)
-                        else -> null
-                    }
-                    Surface(
-                        shape = CircleShape,
-                        color = color,
-                        modifier = Modifier.size(22.dp),
+                Text(
+                    text = stringResource(R.string.frame_thickness),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.widthIn(min = 50.dp)
+                )
+                ThicknessOption.entries.forEach { opt ->
+                    FilterChip(
+                        selected = selectedThickness == opt,
                         onClick = {
-                            selectedColor = colorArgb
+                            selectedThickness = opt
                             applyCustomConfig()
                         },
-                        border = border
-                    ) {}
+                        label = {
+                            Text(
+                                when (opt) {
+                                    ThicknessOption.THIN -> stringResource(R.string.frame_thin)
+                                    ThicknessOption.MEDIUM -> stringResource(R.string.frame_medium)
+                                    ThicknessOption.THICK -> stringResource(R.string.frame_thick)
+                                },
+                                style = MaterialTheme.typography.labelSmall
+                            )
+                        },
+                        modifier = Modifier.widthIn(min = 55.dp)
+                    )
                 }
             }
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Text(
-                text = stringResource(R.string.frame_thickness),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.widthIn(min = 40.dp)
-            )
-            ThicknessOption.entries.forEach { opt ->
-                FilterChip(
-                    selected = selectedThickness == opt,
-                    onClick = {
-                        selectedThickness = opt
-                        applyCustomConfig()
-                    },
-                    label = {
-                        Text(
-                            when (opt) {
-                                ThicknessOption.THIN -> stringResource(R.string.frame_thin)
-                                ThicknessOption.MEDIUM -> stringResource(R.string.frame_medium)
-                                ThicknessOption.THICK -> stringResource(R.string.frame_thick)
-                            },
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                    },
-                    modifier = Modifier.widthIn(min = 55.dp)
-                )
-            }
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = stringResource(R.string.frame_shape),
@@ -245,6 +229,45 @@ private fun CustomFramePanel(
                 },
                 modifier = Modifier.widthIn(min = 55.dp)
             )
+        }
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 0.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.frame_color),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.widthIn(min = 36.dp)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                colors.forEach { color ->
+                    val colorArgb = color.toArgb()
+                    val border = when {
+                        selectedColor == colorArgb -> BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
+                        colorArgb == AndroidColor.BLACK -> BorderStroke(1.dp, Color.White)
+                        else -> null
+                    }
+                    Surface(
+                        shape = CircleShape,
+                        color = color,
+                        modifier = Modifier.size(24.dp),
+                        onClick = {
+                            selectedColor = colorArgb
+                            applyCustomConfig()
+                        },
+                        border = border
+                    ) {}
+                }
+            }
         }
     }
 }
@@ -443,7 +466,9 @@ private fun FrameGridContent(
                 columns = GridCells.Fixed(2),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 320.dp)
             ) {
                 items(
                     items = frameOptions,

@@ -7,9 +7,14 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -21,6 +26,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -45,6 +51,7 @@ import com.example.photoeditor.image.filters.RetroFilter
 import com.example.photoeditor.image.filters.DreamyFilter
 import com.example.photoeditor.image.filters.SunsetFilter
 import com.example.photoeditor.image.filters.CleanSkinFilter
+import com.example.photoeditor.image.filters.EmbossFilter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -143,6 +150,10 @@ fun FilterOptionsPanel(
                 FilterOptionSpec(
                     label = stringResource(R.string.filter_clean_skin),
                     type = com.example.photoeditor.viewmodel.FilterType.CLEAN_SKIN
+                ),
+                FilterOptionSpec(
+                    label = stringResource(R.string.filter_emboss),
+                    type = com.example.photoeditor.viewmodel.FilterType.EMBOSS
                 )
             )
 
@@ -174,6 +185,58 @@ private data class FilterOptionSpec(
     val label: String,
     val type: com.example.photoeditor.viewmodel.FilterType?
 )
+
+/**
+ * Single row of filter options with horizontal scroll.
+ * Used in portrait mode above the bottom navigation bar.
+ */
+@Composable
+fun FiltersHorizontalBar(
+    activeFilterType: com.example.photoeditor.viewmodel.FilterType?,
+    originalBitmap: Bitmap?,
+    onFilterSelected: (com.example.photoeditor.viewmodel.FilterType?) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val options = listOf(
+        FilterOptionSpec(label = stringResource(R.string.original), type = null),
+        FilterOptionSpec(label = stringResource(R.string.grayscale), type = com.example.photoeditor.viewmodel.FilterType.GRAYSCALE),
+        FilterOptionSpec(label = stringResource(R.string.sepia), type = com.example.photoeditor.viewmodel.FilterType.SEPIA),
+        FilterOptionSpec(label = stringResource(R.string.blur), type = com.example.photoeditor.viewmodel.FilterType.BLUR),
+        FilterOptionSpec(label = stringResource(R.string.filter_vivid), type = com.example.photoeditor.viewmodel.FilterType.VIVID),
+        FilterOptionSpec(label = stringResource(R.string.filter_noir), type = com.example.photoeditor.viewmodel.FilterType.NOIR),
+        FilterOptionSpec(label = stringResource(R.string.filter_warm), type = com.example.photoeditor.viewmodel.FilterType.WARM),
+        FilterOptionSpec(label = stringResource(R.string.filter_cool), type = com.example.photoeditor.viewmodel.FilterType.COOL),
+        FilterOptionSpec(label = stringResource(R.string.filter_vintage), type = com.example.photoeditor.viewmodel.FilterType.VINTAGE),
+        FilterOptionSpec(label = stringResource(R.string.filter_invert), type = com.example.photoeditor.viewmodel.FilterType.INVERT),
+        FilterOptionSpec(label = stringResource(R.string.filter_fade), type = com.example.photoeditor.viewmodel.FilterType.FADE),
+        FilterOptionSpec(label = stringResource(R.string.filter_dramatic), type = com.example.photoeditor.viewmodel.FilterType.DRAMATIC),
+        FilterOptionSpec(label = stringResource(R.string.filter_pastel), type = com.example.photoeditor.viewmodel.FilterType.PASTEL),
+        FilterOptionSpec(label = stringResource(R.string.filter_neon), type = com.example.photoeditor.viewmodel.FilterType.NEON),
+        FilterOptionSpec(label = stringResource(R.string.filter_retro), type = com.example.photoeditor.viewmodel.FilterType.RETRO),
+        FilterOptionSpec(label = stringResource(R.string.filter_dreamy), type = com.example.photoeditor.viewmodel.FilterType.DREAMY),
+        FilterOptionSpec(label = stringResource(R.string.filter_sunset), type = com.example.photoeditor.viewmodel.FilterType.SUNSET),
+        FilterOptionSpec(label = stringResource(R.string.filter_clean_skin), type = com.example.photoeditor.viewmodel.FilterType.CLEAN_SKIN),
+        FilterOptionSpec(label = stringResource(R.string.filter_emboss), type = com.example.photoeditor.viewmodel.FilterType.EMBOSS)
+    )
+
+    LazyRow(
+        modifier = modifier.fillMaxHeight(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        items(options) { opt ->
+            FilterOptionButton(
+                label = opt.label,
+                onClick = { onFilterSelected(opt.type) },
+                isSelected = activeFilterType == opt.type,
+                previewBitmap = originalBitmap,
+                filterType = opt.type,
+                modifier = Modifier.size(88.dp)
+            )
+        }
+    }
+}
 
 /**
  * Filter option button with preview
@@ -227,30 +290,31 @@ fun FilterOptionButton(
                     com.example.photoeditor.viewmodel.FilterType.DREAMY -> DreamyFilter().apply(thumbnail)
                     com.example.photoeditor.viewmodel.FilterType.SUNSET -> SunsetFilter().apply(thumbnail)
                     com.example.photoeditor.viewmodel.FilterType.CLEAN_SKIN -> CleanSkinFilter().apply(thumbnail)
+                    com.example.photoeditor.viewmodel.FilterType.EMBOSS -> EmbossFilter().apply(thumbnail)
                 }
             }
         }
     }
     val textColor = MaterialTheme.colorScheme.onSurface // Dark text for all buttons
     
-    // Always show a border so tiles look clickable on black background.
-    val borderWidth = if (isSelected) 2.dp else 1.dp
-    val borderColor = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-    
-    // Interaction source to control ripple effect - no indication to remove gray overlay
-    val interactionSource = remember { MutableInteractionSource() }
+    // Border only when selected - rectangular frame (not rounded)
+    val borderModifier = if (isSelected) {
+        Modifier.border(
+            width = 2.dp,
+            color = MaterialTheme.colorScheme.primary,
+            shape = RectangleShape
+        )
+    } else {
+        Modifier
+    }
     
     Box(
         modifier = modifier
             .aspectRatio(1f) // Square shape
-            .border(
-                width = borderWidth,
-                color = borderColor,
-                shape = RoundedCornerShape(12.dp)
-            )
+            .then(borderModifier)
             .clickable(
-                interactionSource = interactionSource,
-                indication = null // No ripple effect - removes gray overlay
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null // No gray overlay on hover/press
             ) { onClick() }
     ) {
         Box(

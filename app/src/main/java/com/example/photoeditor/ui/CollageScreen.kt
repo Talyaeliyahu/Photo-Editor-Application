@@ -21,13 +21,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import android.content.res.Configuration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.photoeditor.R
+import com.example.photoeditor.ui.theme.SelectedAccentBlue
 import com.example.photoeditor.viewmodel.CollageViewModel
 
 /**
@@ -132,7 +135,7 @@ fun CollageScreen(
                             },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.White,
-                                contentColor = MaterialTheme.colorScheme.primary
+                                contentColor = SelectedAccentBlue
                             )
                         ) {
                             Icon(
@@ -147,6 +150,10 @@ fun CollageScreen(
                 }
             } else {
                 // Show selected images preview - white rectangle for images only, buttons outside
+                val config = LocalConfiguration.current
+                val isPortrait = config.orientation == Configuration.ORIENTATION_PORTRAIT
+                val gridColumns = if (isPortrait) 3 else 6
+                
                 Surface(
                     modifier = Modifier
                         .weight(1f)
@@ -157,7 +164,7 @@ fun CollageScreen(
                 ) {
                     Column(modifier = Modifier.fillMaxSize()) {
                         LazyVerticalGrid(
-                            columns = GridCells.Fixed(6),
+                            columns = GridCells.Fixed(gridColumns),
                             modifier = Modifier.weight(1f),
                             contentPadding = PaddingValues(8.dp),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -205,9 +212,9 @@ fun CollageScreen(
                         enabled = uiState.selectedImages.isNotEmpty(),
                         colors = ButtonDefaults.outlinedButtonColors(
                             containerColor = Color.White,
-                            contentColor = MaterialTheme.colorScheme.primary
+                            contentColor = SelectedAccentBlue
                         ),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary)
+                        border = BorderStroke(1.dp, SelectedAccentBlue)
                     ) {
                         Text(stringResource(R.string.create_collage))
                     }

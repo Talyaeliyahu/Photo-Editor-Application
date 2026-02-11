@@ -2,6 +2,9 @@ package com.example.photoeditor.ui
 
 import android.graphics.Bitmap
 import android.util.Log
+import androidx.activity.ComponentActivity
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
@@ -9,6 +12,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,8 +25,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Shadow
+
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalView
+import android.content.res.Configuration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.LayoutDirection
@@ -47,8 +57,12 @@ import com.example.photoeditor.image.filters.RetroFilter
 import com.example.photoeditor.image.filters.DreamyFilter
 import com.example.photoeditor.image.filters.SunsetFilter
 import com.example.photoeditor.image.filters.CleanSkinFilter
+import com.example.photoeditor.image.filters.EmbossFilter
 import com.example.photoeditor.ui.components.*
+import com.example.photoeditor.ui.components.draw.DrawHorizontalBar
+import com.example.photoeditor.ui.components.frame.FramesHorizontalBar
 import com.example.photoeditor.ui.components.draw.DrawToolPanel
+import com.example.photoeditor.ui.components.sticker.StickersHorizontalBar
 import com.example.photoeditor.ui.components.draw.DrawingOverlay
 import com.example.photoeditor.ui.components.draw.DrawingPathsCanvas
 import com.example.photoeditor.ui.theme.EditorBlackTheme
@@ -95,6 +109,12 @@ fun EditorScreen(
         var isCropping by remember { mutableStateOf(false) }
         // Track if cancel dialog should be shown
         var showCancelDialog by remember { mutableStateOf(false) }
+        // Dismiss other-category sheet when starting crop (so user sees full image)
+        var dismissOtherCategorySheet by remember { mutableStateOf(false) }
+        // Show Text sheet only when "New" is clicked (not auto when selecting TEXT category)
+        var showTextSheet by remember { mutableStateOf(false) }
+        // Show Custom frame sheet when "Custom" is tapped from Frames bar
+        var showCustomFrameSheet by remember { mutableStateOf(false) }
 
         // Remember original adjustment values when opening an adjustment (for cancel/close behavior)
         val originalAdjustmentValues = remember { mutableStateMapOf<AdjustmentType, Float>() }
@@ -106,6 +126,16 @@ fun EditorScreen(
             } else if (!uiState.hasImage) {
                 selectedCategory = MenuCategory.NONE
                 selectedAdjustment = null
+            }
+        }
+
+        // Hide Android system nav bar (triangle, square, circle) when adjustment slider is open
+        val view = LocalView.current
+        LaunchedEffect(selectedAdjustment) {
+            (view.context as? ComponentActivity)?.let { activity ->
+                val insetsController = WindowInsetsControllerCompat(activity.window, activity.window.decorView)
+                insetsController.hide(WindowInsetsCompat.Type.navigationBars())
+                insetsController.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         }
 
@@ -137,9 +167,372 @@ fun EditorScreen(
                 CircularProgressIndicator()
             }
         } else {
-            // Editor layout - image takes most space with side panel
-            // Force LTR layout only for the Row so image is always on the left, panel on the right
-            // But keep RTL for text content inside the panel
+            val config = LocalConfiguration.current
+            val isPortrait = config.orientation == Configuration.ORIENTATION_PORTRAIT
+
+            if (isPortrait) {
+                // Portrait layout: Top bar → Photo → Categories (horizontal scroll) → Bottom nav (horizontal scroll)
+                val context = LocalContext.current
+                val appLanguage = com.example.photoeditor.utils.LocaleHelper.getAppLanguage(context)
+                val panelLayoutDirection = if (appLanguage == "he") LayoutDirection.Rtl else LayoutDirection.Ltr
+
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        // Top action bar - full width
+                        CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                            TopActionBarHorizontal(
+                                canUndo = uiState.canUndo,
+                                canRedo = uiState.canRedo,
+                                showOriginal = uiState.showOriginal,
+                                isSaving = uiState.isSaving,
+                                onUndo = { viewModel.undo() },
+                                onRedo = { viewModel.redo() },
+                                onToggle = { viewModel.toggleShowOriginal() },
+                                onSave = { viewModel.saveImage() },
+                                onNew = { showCancelDialog = true },
+                                flipUndoRedoForRtl = appLanguage == "he",
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        Box(modifier = Modifier.height(1.dp).fillMaxWidth().background(MaterialTheme.colorScheme.outline))
+
+                        // Photo - takes most space
+                        val displayedBitmap = if (uiState.showOriginal) uiState.originalBitmap else uiState.currentBitmap
+                        Box(modifier = Modifier.weight(1f)) {
+                            ImageDisplay(
+                                bitmap = displayedBitmap,
+                                isLoading = uiState.isLoading || uiState.isProcessing,
+                                onLongPress = { },
+                                enableZoom = !isCropping,
+                                allowSingleFingerPan = selectedCategory != MenuCategory.STICKERS && selectedCategory != MenuCategory.TEXT && uiState.selectedTextId == null,
+                                resetTransform = isCropping,
+                                roundedCornerRadiusPercent = if (!uiState.showOriginal && uiState.frameConfig.type == com.example.photoeditor.model.FrameType.STROKE && uiState.frameConfig.cornerRadiusPercent > 0f) {
+                                    uiState.frameConfig.cornerRadiusPercent
+                                } else 0f,
+                                overlayContent = { imageRect, scale ->
+                                    if (!uiState.showOriginal && uiState.frameConfig.type != com.example.photoeditor.model.FrameType.NONE) {
+                                        FramePreviewOverlay(imageRect = imageRect, config = uiState.frameConfig, modifier = Modifier.fillMaxSize())
+                                    }
+                                    if (!uiState.showOriginal) {
+                                        if (uiState.drawPaths.isNotEmpty()) {
+                                            DrawingPathsCanvas(drawPaths = uiState.drawPaths, imageRect = imageRect)
+                                        }
+                                        StickerOverlaysOnImage(
+                                            overlays = uiState.stickerOverlays, selectedId = uiState.selectedStickerId,
+                                            imageRect = imageRect, scale = scale, isEditing = selectedCategory == MenuCategory.STICKERS,
+                                            onSelect = { id -> viewModel.selectStickerOverlay(id) },
+                                            onMoveById = { id, dx, dy -> viewModel.moveStickerById(id, dx, dy) },
+                                            onRotateToId = { id, deg -> viewModel.setStickerRotationDegreesById(id, deg) },
+                                            onScaleAndPositionToId = { id, sizeNorm, xNorm, yNorm -> viewModel.setStickerSizeAndPositionById(id, sizeNorm, xNorm, yNorm) }
+                                        )
+                                        TextOverlaysOnImage(
+                                            overlays = uiState.textOverlays, selectedId = uiState.selectedTextId,
+                                            imageRect = imageRect, imageBitmapWidth = displayedBitmap?.width ?: 0, imageBitmapHeight = displayedBitmap?.height ?: 0,
+                                            scale = scale, isEditing = selectedCategory == MenuCategory.TEXT || uiState.selectedTextId != null,
+                                            onSelect = { id -> viewModel.selectTextOverlay(id) },
+                                            onMoveById = { id, dxNorm, dyNorm -> viewModel.moveTextById(id, dxNorm, dyNorm) },
+                                            onRotateToId = { id, deg -> viewModel.setTextRotationDegreesById(id, deg) },
+                                            onScaleAndPositionToId = { id, sizeNorm, xNorm, yNorm -> viewModel.setTextSizeAndPositionById(id, sizeNorm, xNorm, yNorm) },
+                                        )
+                                        if (selectedCategory == MenuCategory.DRAW) {
+                                            DrawingOverlay(
+                                                drawPaths = uiState.drawPaths, imageRect = imageRect,
+                                                strokeWidthNorm = uiState.drawStrokeWidthNorm, drawColorArgb = uiState.drawColor, enabled = true,
+                                                onStartPath = { nx, ny -> viewModel.startNewDrawPath(nx, ny) },
+                                                onAddPoint = { nx, ny -> viewModel.addPointToCurrentDrawPath(nx, ny) }
+                                            )
+                                        }
+                                    }
+                                }
+                            )
+                            ImageIndicator(showOriginal = uiState.showOriginal, modifier = Modifier.align(Alignment.TopEnd))
+                            if (isCropping) {
+                                CropOverlay(
+                                    bitmap = uiState.currentBitmap,
+                                    onCancel = { isCropping = false },
+                                    onConfirm = { rect -> viewModel.cropToRect(rect); isCropping = false },
+                                    modifier = Modifier.fillMaxSize()
+                                )
+                            }
+                        }
+
+                        // Fixed category bar - above bottom nav, content changes by category
+                        // Slightly more than one row height, horizontal scroll for Adjustments and Filters
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
+                                .background(MaterialTheme.colorScheme.surface)
+                        ) {
+                            Box(modifier = Modifier.height(1.dp).fillMaxWidth().background(MaterialTheme.colorScheme.outline))
+                            CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                                when (selectedCategory) {
+                                    MenuCategory.ADJUSTMENTS -> AdjustmentsHorizontalBar(
+                                        selectedAdjustment = selectedAdjustment,
+                                        onAdjustmentClick = { type ->
+                                            val current = selectedAdjustment
+                                            if (current == type) {
+                                                originalAdjustmentValues[type]?.let { original -> viewModel.setAdjustment(type, original) }
+                                                selectedAdjustment = null
+                                            } else {
+                                                current?.let { prev -> originalAdjustmentValues[prev] = viewModel.getAdjustmentValue(prev) }
+                                                if (!originalAdjustmentValues.containsKey(type)) {
+                                                    originalAdjustmentValues[type] = viewModel.getAdjustmentValue(type)
+                                                }
+                                                selectedAdjustment = type
+                                            }
+                                        }
+                                    )
+                                    MenuCategory.FILTERS -> FiltersHorizontalBar(
+                                        activeFilterType = uiState.activeFilterType,
+                                        originalBitmap = uiState.originalBitmap,
+                                        onFilterSelected = { type ->
+                                            if (type == null) {
+                                                viewModel.removeFilter()
+                                                return@FiltersHorizontalBar
+                                            }
+                                            if (uiState.activeFilterType == type) {
+                                                viewModel.removeFilter()
+                                                return@FiltersHorizontalBar
+                                            }
+                                            val filter = when (type) {
+                                                com.example.photoeditor.viewmodel.FilterType.GRAYSCALE -> GrayscaleFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.SEPIA -> SepiaFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.BLUR -> BlurFilter(radius = 5)
+                                                com.example.photoeditor.viewmodel.FilterType.INVERT -> InvertFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.NOIR -> NoirFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.VIVID -> VividFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.WARM -> WarmFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.COOL -> CoolFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.VINTAGE -> VintageFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.FADE -> FadeFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.DRAMATIC -> DramaticFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.PASTEL -> PastelFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.NEON -> NeonFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.RETRO -> RetroFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.DREAMY -> DreamyFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.SUNSET -> SunsetFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.CLEAN_SKIN -> CleanSkinFilter()
+                                                com.example.photoeditor.viewmodel.FilterType.EMBOSS -> EmbossFilter()
+                                                else -> null
+                                            }
+                                            filter?.let { viewModel.applyFilter(it, type) }
+                                        }
+                                    )
+                                    MenuCategory.TEXT -> com.example.photoeditor.ui.components.text.TextHorizontalBar(
+                                        textOverlays = uiState.textOverlays,
+                                        selectedTextId = uiState.selectedTextId,
+                                        onAddNew = { viewModel.selectTextOverlay(null); showTextSheet = true },
+                                        onSelectText = { id -> viewModel.selectTextOverlay(id); showTextSheet = true }
+                                    )
+                                    MenuCategory.TRANSFORM -> TransformHorizontalBar(
+                                        selectedTransformTool = selectedTransformTool,
+                                        onToolSelected = { selectedTransformTool = it },
+                                        onRotate = { viewModel.rotate90Clockwise() },
+                                        onMirror = { viewModel.flipHorizontal() },
+                                        onStartCrop = { isCropping = true },
+                                        onCropToAspectRatio = { viewModel.cropToAspectRatioFromInitial(it, 1f) },
+                                        onResetToOriginal = { viewModel.resetToInitialImage() }
+                                    )
+                                    MenuCategory.STICKERS -> StickersHorizontalBar(
+                                        selectedId = uiState.selectedStickerId,
+                                        onAddSticker = { emoji -> viewModel.addStickerOverlay(emoji) },
+                                        onDeleteSelected = { viewModel.deleteSelectedSticker() }
+                                    )
+                                    MenuCategory.DRAW -> DrawHorizontalBar(
+                                        strokeWidth = uiState.drawStrokeWidthNorm,
+                                        drawColorArgb = uiState.drawColor,
+                                        onStrokeWidthChange = { viewModel.setDrawStrokeWidth(it) },
+                                        onColorChange = { viewModel.setDrawColor(it) },
+                                        onClear = { viewModel.clearDrawings() }
+                                    )
+                                    MenuCategory.FRAMES -> FramesHorizontalBar(
+                                        currentConfig = uiState.frameConfig,
+                                        onConfigChange = { config -> viewModel.setFrameConfig(config) },
+                                        onCustomClick = { showCustomFrameSheet = true }
+                                    )
+                                    else -> {
+                                        if (selectedCategory != MenuCategory.NONE) {
+                                            Box(Modifier.fillMaxSize())
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Box(modifier = Modifier.height(1.dp).fillMaxWidth().background(MaterialTheme.colorScheme.outline))
+                        CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                            BottomNavigationBar(
+                                selectedCategory = selectedCategory,
+                                onCategorySelected = { category ->
+                                    if (selectedCategory == category && (selectedAdjustment != null || selectedTransformTool != null)) {
+                                        selectedAdjustment?.let { adj ->
+                                            originalAdjustmentValues[adj]?.let { original -> viewModel.setAdjustment(adj, original) }
+                                        }
+                                        selectedAdjustment = null
+                                        selectedTransformTool = null
+                                    } else {
+                                        selectedCategory = if (selectedCategory == category) MenuCategory.NONE else category
+                                        selectedAdjustment?.let { adj ->
+                                            originalAdjustmentValues[adj]?.let { original -> viewModel.setAdjustment(adj, original) }
+                                        }
+                                        selectedAdjustment = null
+                                        selectedTransformTool = null
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // Bottom sheet for other categories (Stickers, Draw, Frames) - Text and Transform show in bar
+                val otherCategories = emptyList<MenuCategory>()
+                val showOtherCategorySheet = selectedCategory in otherCategories && !dismissOtherCategorySheet
+                LaunchedEffect(selectedCategory) { dismissOtherCategorySheet = false }
+                // Text sheet - only when "New" clicked from TextHorizontalBar
+                if (showTextSheet && selectedCategory == MenuCategory.TEXT) {
+                    val textSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ModalBottomSheet(
+                        onDismissRequest = { showTextSheet = false },
+                        sheetState = textSheetState,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrimColor = androidx.compose.ui.graphics.Color.Transparent
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                            EditorCategoryContent(
+                                selectedCategory = MenuCategory.TEXT,
+                                selectedAdjustment = selectedAdjustment,
+                                selectedTransformTool = selectedTransformTool,
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                originalAdjustmentValues = originalAdjustmentValues,
+                                onAdjustmentChange = { selectedAdjustment = it },
+                                onTransformToolChange = { selectedTransformTool = it },
+                                onStartCrop = { },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 260.dp)
+                                    .imePadding()
+                            )
+                        }
+                    }
+                }
+
+                if (showCustomFrameSheet && selectedCategory == MenuCategory.FRAMES) {
+                    val customSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ModalBottomSheet(
+                        onDismissRequest = { showCustomFrameSheet = false },
+                        sheetState = customSheetState,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrimColor = androidx.compose.ui.graphics.Color.Transparent,
+                        shape = androidx.compose.ui.graphics.RectangleShape,
+                        dragHandle = null,
+                        contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(androidx.compose.ui.graphics.Color.Black)
+                                    .navigationBarsPadding()
+                            ) {
+                                FrameCustomSheetContent(
+                                    currentConfig = uiState.frameConfig,
+                                    onConfigChange = { config -> viewModel.setFrameConfig(config) },
+                                    onDismiss = { showCustomFrameSheet = false },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+                if (showOtherCategorySheet) {
+                    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                    ModalBottomSheet(
+                        onDismissRequest = { selectedCategory = MenuCategory.NONE },
+                        sheetState = sheetState,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrimColor = androidx.compose.ui.graphics.Color.Transparent
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                            val textMaxHeight = if (selectedCategory == MenuCategory.TEXT) 260.dp else 400.dp
+                            EditorCategoryContent(
+                                selectedCategory = selectedCategory,
+                                selectedAdjustment = selectedAdjustment,
+                                selectedTransformTool = selectedTransformTool,
+                                uiState = uiState,
+                                viewModel = viewModel,
+                                originalAdjustmentValues = originalAdjustmentValues,
+                                onAdjustmentChange = { selectedAdjustment = it },
+                                onTransformToolChange = { selectedTransformTool = it },
+                                onStartCrop = { dismissOtherCategorySheet = true; isCropping = true },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = textMaxHeight)
+                                    .imePadding()
+                            )
+                        }
+                    }
+                }
+
+                // Slider bottom sheet when adjustment selected in portrait
+                selectedAdjustment?.let { adj ->
+                    val values = mapOf(
+                        AdjustmentType.BRIGHTNESS to uiState.brightness,
+                        AdjustmentType.CONTRAST to uiState.contrast,
+                        AdjustmentType.SATURATION to uiState.saturation,
+                        AdjustmentType.EXPOSURE to uiState.exposure,
+                        AdjustmentType.HIGHLIGHTS to uiState.highlights,
+                        AdjustmentType.SHADOWS to uiState.shadows,
+                        AdjustmentType.VIBRANCE to uiState.vibrance,
+                        AdjustmentType.WARMTH to uiState.warmth,
+                        AdjustmentType.TINT to uiState.tint,
+                        AdjustmentType.HUE to uiState.hue,
+                        AdjustmentType.SHARPNESS to uiState.sharpness,
+                        AdjustmentType.DEFINITION to uiState.definition,
+                        AdjustmentType.VIGNETTE to uiState.vignette,
+                        AdjustmentType.GLOW to uiState.glow
+                    )
+                    ModalBottomSheet(
+                        onDismissRequest = {
+                            originalAdjustmentValues[adj]?.let { orig -> viewModel.setAdjustment(adj, orig) }
+                            selectedAdjustment = null
+                        },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        scrimColor = androidx.compose.ui.graphics.Color.Transparent,
+                        contentWindowInsets = { WindowInsets(0, 0, 0, 0) }
+                    ) {
+                        CompositionLocalProvider(LocalLayoutDirection provides panelLayoutDirection) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(MaterialTheme.colorScheme.surface)
+                                    .navigationBarsPadding()
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    AdjustmentSliderPanel(
+                                        adjustmentType = adj,
+                                        initialValue = values[adj] ?: 0f,
+                                        onValueChange = { viewModel.setAdjustment(adj, it) },
+                                        onConfirm = { value ->
+                                            originalAdjustmentValues[adj] = value
+                                            selectedAdjustment = null
+                                        },
+                                        onCancel = { original ->
+                                            viewModel.setAdjustment(adj, original)
+                                            selectedAdjustment = null
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            } else {
+                // Landscape layout - unchanged: Row with image | side panel
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
                 Row(modifier = Modifier.weight(1f)) {
                 // Image display - takes remaining space (always on left)
@@ -150,6 +543,7 @@ fun EditorScreen(
                         isLoading = uiState.isLoading || uiState.isProcessing,
                         onLongPress = { },
                         enableZoom = !isCropping,
+                        allowSingleFingerPan = selectedCategory != MenuCategory.STICKERS && selectedCategory != MenuCategory.TEXT && uiState.selectedTextId == null,
                         resetTransform = isCropping,
                         roundedCornerRadiusPercent = if (!uiState.showOriginal && uiState.frameConfig.type == com.example.photoeditor.model.FrameType.STROKE && uiState.frameConfig.cornerRadiusPercent > 0f) {
                             uiState.frameConfig.cornerRadiusPercent
@@ -170,36 +564,36 @@ fun EditorScreen(
                                     DrawingPathsCanvas(
                                         drawPaths = uiState.drawPaths,
                                         imageRect = imageRect
-                                    )
-                                }
-                                StickerOverlaysOnImage(
-                                    overlays = uiState.stickerOverlays,
-                                    selectedId = uiState.selectedStickerId,
-                                    imageRect = imageRect,
-                                    scale = scale,
+                                )
+                            }
+                            StickerOverlaysOnImage(
+                                overlays = uiState.stickerOverlays,
+                                selectedId = uiState.selectedStickerId,
+                                imageRect = imageRect,
+                                scale = scale,
                                     isEditing = selectedCategory == MenuCategory.STICKERS,
-                                    onSelect = { id -> viewModel.selectStickerOverlay(id) },
-                                    onMoveById = { id, dx, dy -> viewModel.moveStickerById(id, dx, dy) },
-                                    onRotateToId = { id, deg -> viewModel.setStickerRotationDegreesById(id, deg) },
-                                    onScaleAndPositionToId = { id, sizeNorm, xNorm, yNorm ->
-                                        viewModel.setStickerSizeAndPositionById(id, sizeNorm, xNorm, yNorm)
-                                    }
-                                )
-                                TextOverlaysOnImage(
-                                    overlays = uiState.textOverlays,
-                                    selectedId = uiState.selectedTextId,
-                                    imageRect = imageRect,
-                                    imageBitmapWidth = displayedBitmap?.width ?: 0,
-                                    imageBitmapHeight = displayedBitmap?.height ?: 0,
-                                    scale = scale,
-                                    isEditing = selectedCategory == MenuCategory.TEXT,
-                                    onSelect = { id -> viewModel.selectTextOverlay(id) },
-                                    onMoveById = { id, dxNorm, dyNorm -> viewModel.moveTextById(id, dxNorm, dyNorm) },
-                                    onRotateToId = { id, deg -> viewModel.setTextRotationDegreesById(id, deg) },
-                                    onScaleAndPositionToId = { id, sizeNorm, xNorm, yNorm ->
-                                        viewModel.setTextSizeAndPositionById(id, sizeNorm, xNorm, yNorm)
-                                    },
-                                )
+                                onSelect = { id -> viewModel.selectStickerOverlay(id) },
+                                onMoveById = { id, dx, dy -> viewModel.moveStickerById(id, dx, dy) },
+                                onRotateToId = { id, deg -> viewModel.setStickerRotationDegreesById(id, deg) },
+                                onScaleAndPositionToId = { id, sizeNorm, xNorm, yNorm ->
+                                    viewModel.setStickerSizeAndPositionById(id, sizeNorm, xNorm, yNorm)
+                                }
+                            )
+                            TextOverlaysOnImage(
+                                overlays = uiState.textOverlays,
+                                selectedId = uiState.selectedTextId,
+                                imageRect = imageRect,
+                                imageBitmapWidth = displayedBitmap?.width ?: 0,
+                                imageBitmapHeight = displayedBitmap?.height ?: 0,
+                                scale = scale,
+                                    isEditing = selectedCategory == MenuCategory.TEXT || uiState.selectedTextId != null,
+                                onSelect = { id -> viewModel.selectTextOverlay(id) },
+                                onMoveById = { id, dxNorm, dyNorm -> viewModel.moveTextById(id, dxNorm, dyNorm) },
+                                onRotateToId = { id, deg -> viewModel.setTextRotationDegreesById(id, deg) },
+                                onScaleAndPositionToId = { id, sizeNorm, xNorm, yNorm ->
+                                    viewModel.setTextSizeAndPositionById(id, sizeNorm, xNorm, yNorm)
+                                },
+                            )
                                 // Drawing touch overlay - only when in DRAW mode, on top for capturing touches
                                 if (selectedCategory == MenuCategory.DRAW) {
                                     DrawingOverlay(
@@ -372,6 +766,7 @@ fun EditorScreen(
                                                     com.example.photoeditor.viewmodel.FilterType.DREAMY -> DreamyFilter()
                                                     com.example.photoeditor.viewmodel.FilterType.SUNSET -> SunsetFilter()
                                                     com.example.photoeditor.viewmodel.FilterType.CLEAN_SKIN -> CleanSkinFilter()
+                                                    com.example.photoeditor.viewmodel.FilterType.EMBOSS -> EmbossFilter()
                                                     else -> null
                                                 }
 
@@ -414,13 +809,15 @@ fun EditorScreen(
                                             )
                                         }
                                         MenuCategory.STICKERS -> {
+                                            Box(modifier = Modifier.heightIn(max = 360.dp).fillMaxWidth()) {
                                             StickerToolPanel(
                                                 stickers = uiState.stickerOverlays,
                                                 selectedId = uiState.selectedStickerId,
                                                 onAddSticker = { emoji -> viewModel.addStickerOverlay(emoji) },
                                                 onDeleteSelected = { viewModel.deleteSelectedSticker() },
-                                                modifier = Modifier.fillMaxSize()
-                                            )
+                                                    modifier = Modifier.fillMaxSize()
+                                                )
+                                            }
                                         }
                                         MenuCategory.DRAW -> {
                                             DrawToolPanel(
@@ -480,6 +877,7 @@ fun EditorScreen(
                         }
                     )
                     }
+                    }
                 }
                 }
             }
@@ -517,6 +915,155 @@ fun EditorScreen(
             )
         }
 
+        }
+    }
+}
+
+@Composable
+private fun EditorCategoryContent(
+    selectedCategory: MenuCategory,
+    selectedAdjustment: AdjustmentType?,
+    selectedTransformTool: TransformTool?,
+    uiState: com.example.photoeditor.viewmodel.EditorUiState,
+    viewModel: EditorViewModel,
+    originalAdjustmentValues: MutableMap<AdjustmentType, Float>,
+    onAdjustmentChange: (AdjustmentType?) -> Unit,
+    onTransformToolChange: (TransformTool?) -> Unit,
+    onStartCrop: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier
+            .verticalScroll(rememberScrollState())
+            .padding(16.dp)
+    ) {
+        when (selectedCategory) {
+            MenuCategory.ADJUSTMENTS -> {
+                val values = mapOf(
+                    AdjustmentType.BRIGHTNESS to uiState.brightness,
+                    AdjustmentType.CONTRAST to uiState.contrast,
+                    AdjustmentType.SATURATION to uiState.saturation,
+                    AdjustmentType.EXPOSURE to uiState.exposure,
+                    AdjustmentType.HIGHLIGHTS to uiState.highlights,
+                    AdjustmentType.SHADOWS to uiState.shadows,
+                    AdjustmentType.VIBRANCE to uiState.vibrance,
+                    AdjustmentType.WARMTH to uiState.warmth,
+                    AdjustmentType.TINT to uiState.tint,
+                    AdjustmentType.HUE to uiState.hue,
+                    AdjustmentType.SHARPNESS to uiState.sharpness,
+                    AdjustmentType.DEFINITION to uiState.definition,
+                    AdjustmentType.VIGNETTE to uiState.vignette,
+                    AdjustmentType.GLOW to uiState.glow
+                )
+                fun openOrClose(type: AdjustmentType) {
+                    val current = selectedAdjustment
+                    if (current == type) {
+                        originalAdjustmentValues[type]?.let { original -> viewModel.setAdjustment(type, original) }
+                        onAdjustmentChange(null)
+                    } else {
+                        current?.let { prev -> originalAdjustmentValues[prev] = viewModel.getAdjustmentValue(prev) }
+                        if (!originalAdjustmentValues.containsKey(type)) {
+                            originalAdjustmentValues[type] = viewModel.getAdjustmentValue(type)
+                        }
+                        onAdjustmentChange(type)
+                    }
+                }
+                AdjustmentPanel(
+                    values = values,
+                    selectedAdjustment = selectedAdjustment,
+                    onAdjustmentClick = { openOrClose(it) },
+                    onValueChange = { type, value -> viewModel.setAdjustment(type, value) },
+                    onReset = {
+                        originalAdjustmentValues.clear()
+                        onAdjustmentChange(null)
+                        viewModel.resetAdjustments()
+                    },
+                    onConfirmAdjustment = { type, value -> originalAdjustmentValues[type] = value }
+                )
+            }
+            MenuCategory.FILTERS -> {
+                fun selectFilter(type: com.example.photoeditor.viewmodel.FilterType?) {
+                    if (type == null) {
+                        viewModel.removeFilter()
+                        return
+                    }
+                    if (uiState.activeFilterType == type) {
+                        viewModel.removeFilter()
+                        return
+                    }
+                    val filter = when (type) {
+                        com.example.photoeditor.viewmodel.FilterType.GRAYSCALE -> GrayscaleFilter()
+                        com.example.photoeditor.viewmodel.FilterType.SEPIA -> SepiaFilter()
+                        com.example.photoeditor.viewmodel.FilterType.BLUR -> BlurFilter(radius = 5)
+                        com.example.photoeditor.viewmodel.FilterType.INVERT -> InvertFilter()
+                        com.example.photoeditor.viewmodel.FilterType.NOIR -> NoirFilter()
+                        com.example.photoeditor.viewmodel.FilterType.VIVID -> VividFilter()
+                        com.example.photoeditor.viewmodel.FilterType.WARM -> WarmFilter()
+                        com.example.photoeditor.viewmodel.FilterType.COOL -> CoolFilter()
+                        com.example.photoeditor.viewmodel.FilterType.VINTAGE -> VintageFilter()
+                        com.example.photoeditor.viewmodel.FilterType.FADE -> FadeFilter()
+                        com.example.photoeditor.viewmodel.FilterType.DRAMATIC -> DramaticFilter()
+                        com.example.photoeditor.viewmodel.FilterType.PASTEL -> PastelFilter()
+                        com.example.photoeditor.viewmodel.FilterType.NEON -> NeonFilter()
+                        com.example.photoeditor.viewmodel.FilterType.RETRO -> RetroFilter()
+                        com.example.photoeditor.viewmodel.FilterType.DREAMY -> DreamyFilter()
+                        com.example.photoeditor.viewmodel.FilterType.SUNSET -> SunsetFilter()
+                        com.example.photoeditor.viewmodel.FilterType.CLEAN_SKIN -> CleanSkinFilter()
+                        com.example.photoeditor.viewmodel.FilterType.EMBOSS -> EmbossFilter()
+                        else -> null
+                    }
+                    filter?.let { viewModel.applyFilter(it, type) }
+                }
+                FilterOptionsPanel(
+                    activeFilterType = uiState.activeFilterType,
+                    originalBitmap = uiState.originalBitmap,
+                    onFilterSelected = { selectFilter(it) }
+                )
+            }
+            MenuCategory.TRANSFORM -> TransformPanel(
+                selectedTool = selectedTransformTool,
+                onToolSelected = onTransformToolChange,
+                onRotate = { viewModel.rotate90Clockwise() },
+                onMirror = { viewModel.flipHorizontal() },
+                onStartCrop = onStartCrop,
+                onResetToOriginal = { viewModel.resetToInitialImage() },
+                onCropToAspectRatio = { viewModel.cropToAspectRatioFromInitial(it, 1f) }
+            )
+            MenuCategory.TEXT -> TextToolPanel(
+                overlays = uiState.textOverlays,
+                selectedId = uiState.selectedTextId,
+                onAdd = { viewModel.addTextOverlay() },
+                onSelect = { id -> viewModel.selectTextOverlay(id) },
+                onDeselect = { viewModel.selectTextOverlay(null) },
+                onTextChange = { text -> viewModel.updateSelectedText(text) },
+                onToggleBold = { viewModel.toggleSelectedTextBold() },
+                onToggleItalic = { viewModel.toggleSelectedTextItalic() },
+                onToggleUnderline = { viewModel.toggleSelectedTextUnderline() },
+                onColorChange = { argb -> viewModel.setSelectedTextColor(argb) },
+                onDelete = { viewModel.deleteSelectedText() },
+                modifier = Modifier.fillMaxWidth()
+            )
+            MenuCategory.STICKERS -> StickerToolPanel(
+                stickers = uiState.stickerOverlays,
+                selectedId = uiState.selectedStickerId,
+                onAddSticker = { emoji -> viewModel.addStickerOverlay(emoji) },
+                onDeleteSelected = { viewModel.deleteSelectedSticker() },
+                modifier = Modifier.fillMaxWidth()
+            )
+            MenuCategory.DRAW -> DrawToolPanel(
+                strokeWidth = uiState.drawStrokeWidthNorm,
+                drawColorArgb = uiState.drawColor,
+                onStrokeWidthChange = { viewModel.setDrawStrokeWidth(it) },
+                onColorChange = { viewModel.setDrawColor(it) },
+                onClear = { viewModel.clearDrawings() },
+                modifier = Modifier.fillMaxWidth()
+            )
+            MenuCategory.FRAMES -> FrameToolPanel(
+                currentConfig = uiState.frameConfig,
+                onConfigChange = { config -> viewModel.setFrameConfig(config) },
+                modifier = Modifier.fillMaxWidth()
+            )
+            MenuCategory.NONE -> {}
         }
     }
 }

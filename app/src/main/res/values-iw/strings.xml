@@ -29,6 +29,7 @@
     <string name="change_aspect_ratio">שינוי יחס תמונה</string>
     <string name="text_tools">טקסט</string>
     <string name="add_text">הוסף טקסט</string>
+    <string name="new_text">חדש</string>
     <string name="done">סיום</string>
     <string name="text_hint">הקלד טקסט</string>
     <string name="text_size">גודל טקסט</string>
@@ -116,6 +117,7 @@
     <string name="filter_dreamy">חלומי</string>
     <string name="filter_sunset">שקיעה</string>
     <string name="filter_clean_skin">עור נקי</string>
+    <string name="filter_emboss">תבליט</string>
     
     <!-- Image Indicator -->
     <string name="original">מקורי</string>

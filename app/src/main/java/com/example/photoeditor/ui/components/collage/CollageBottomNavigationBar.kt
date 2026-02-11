@@ -3,9 +3,7 @@ package com.example.photoeditor.ui.components.collage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BorderColor
 import androidx.compose.material.icons.filled.GridOn
@@ -35,31 +33,27 @@ fun CollageBottomNavigationBar(
         color = Color.Black,
         shadowElevation = 8.dp
     ) {
-        LazyRow(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp)
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            item {
-                CollageNavButton(
-                    category = CollagePanelCategory.TEMPLATES,
-                    label = stringResource(R.string.templates),
-                    icon = Icons.Default.GridOn,
-                    isSelected = selectedCategory == CollagePanelCategory.TEMPLATES,
-                    onClick = { onCategorySelected(CollagePanelCategory.TEMPLATES) }
-                )
-            }
-            item {
-                CollageNavButton(
-                    category = CollagePanelCategory.BORDERS,
-                    label = stringResource(R.string.border),
-                    icon = Icons.Default.BorderColor,
-                    isSelected = selectedCategory == CollagePanelCategory.BORDERS,
-                    onClick = { onCategorySelected(CollagePanelCategory.BORDERS) }
-                )
-            }
+            CollageNavButton(
+                category = CollagePanelCategory.TEMPLATES,
+                label = stringResource(R.string.templates),
+                icon = Icons.Default.GridOn,
+                isSelected = selectedCategory == CollagePanelCategory.TEMPLATES,
+                onClick = { onCategorySelected(CollagePanelCategory.TEMPLATES) }
+            )
+            CollageNavButton(
+                category = CollagePanelCategory.BORDERS,
+                label = stringResource(R.string.border),
+                icon = Icons.Default.BorderColor,
+                isSelected = selectedCategory == CollagePanelCategory.BORDERS,
+                onClick = { onCategorySelected(CollagePanelCategory.BORDERS) }
+            )
         }
     }
 }

@@ -66,10 +66,10 @@ fun BorderPanel(
                     modifier = Modifier.widthIn(min = 70.dp)
                 )
                 Slider(
-                    value = borderWidth.coerceIn(0f, 12f),
+                    value = borderWidth.coerceIn(0f, 24f),
                     onValueChange = onBorderWidthChange,
-                    valueRange = 0f..12f,
-                    steps = 11,
+                    valueRange = 0f..24f,
+                    steps = 12,
                     modifier = Modifier.weight(1f),
                     colors = SliderDefaults.colors(
                         thumbColor = Color.White,

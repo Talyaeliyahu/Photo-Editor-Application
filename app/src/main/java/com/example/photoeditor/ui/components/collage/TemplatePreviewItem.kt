@@ -34,7 +34,7 @@ fun TemplatePreviewItem(
             null
         },
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1A1A1A)
+            containerColor = Color.Black
         )
     ) {
         Box(
