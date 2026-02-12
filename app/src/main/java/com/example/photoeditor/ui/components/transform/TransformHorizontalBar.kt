@@ -7,8 +7,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AspectRatio
 import androidx.compose.material.icons.filled.Close
@@ -56,40 +57,49 @@ fun TransformHorizontalBar(
     )
 
     if (selectedTransformTool == TransformTool.ASPECT_RATIO) {
-        LazyRow(
-            modifier = modifier.fillMaxHeight(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            item {
-                IconButton(onClick = { onToolSelected(null) }) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-                }
+            IconButton(onClick = { onToolSelected(null) }) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = null,
+                    tint = Color.White
+                )
             }
-            items(aspectOptions) { item ->
-                OutlinedButton(
-                    onClick = {
-                        if (item.isOriginal) {
-                            onResetToOriginal()
-                            onToolSelected(null)
-                        } else {
-                            onCropToAspectRatio(item.ratio)
-                            onToolSelected(null)
-                        }
-                    },
-                    modifier = Modifier.padding(2.dp)
-                ) {
-                    Text(
-                        text = item.label,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = Color.White,
-                        textAlign = TextAlign.Center
-                    )
+            LazyHorizontalGrid(
+                rows = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth().fillMaxHeight(),
+                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 4.dp)
+            ) {
+                items(aspectOptions) { item ->
+                    OutlinedButton(
+                        onClick = {
+                            if (item.isOriginal) {
+                                onResetToOriginal()
+                                onToolSelected(null)
+                            } else {
+                                onCropToAspectRatio(item.ratio)
+                                onToolSelected(null)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(2.dp)
+                    ) {
+                        Text(
+                            text = item.label,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = Color.White,
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }
